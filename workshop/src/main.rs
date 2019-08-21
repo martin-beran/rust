@@ -8,16 +8,18 @@ use walkdir::WalkDir;
 type FileHash = HashMap<md5::Digest, Vec<PathBuf>>;
 
 fn main() -> Result<(), Error> {
-    let files = get_files()?;
+    let args: Vec<String> = std::env::args().collect();
+    let dir = if args.len() > 1 { &args[1] } else { "." };
+    let files = get_files(dir)?;
     let hash = find_dupl(files);
     show_dupl(&hash);
 
     return Ok(());
 }
 
-fn get_files() -> Result<Vec<PathBuf>, Error> {
+fn get_files(dir: &str) -> Result<Vec<PathBuf>, Error> {
     let mut files: Vec<PathBuf> = Vec::new();
-    for f in WalkDir::new(".") {
+    for f in WalkDir::new(dir) {
         files.push(f?.path().to_path_buf());
     }
     return Result::Ok(files);
@@ -26,12 +28,23 @@ fn get_files() -> Result<Vec<PathBuf>, Error> {
 fn find_dupl(files: Vec<PathBuf>) -> FileHash {
     let mut hash = FileHash::new();
     for f in files {
-        match std::fs::read(&f) {
-            Ok(data) => {
-                let digest = md5::compute(data);
-                hash.entry(digest).or_default().push(f);
+        if match f.metadata() {
+            Ok(meta) => meta.is_file(),
+            Err(e) => {
+                println!("ERROR: {}: {}", f.display(), e);
+                false
             },
-            Err(_) => {},
+        } {
+            match std::fs::read(&f) {
+                Ok(data) => {
+                    let digest = md5::compute(data);
+                    hash.entry(digest).or_default().push(f);
+                },
+                Err(e) => {
+                    println!("ERROR: {}: {}", f.display(), e);
+                    {};
+                },
+            }
         }
     }
     return hash;
