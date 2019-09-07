@@ -1,22 +1,22 @@
+use std::collections::BTreeMap;
 use std::env;
+use std::result::Result;
 
-fn main() {
-    let args = env::args();
-    let mut i = 0;
-    for a in args {
-        arg(i, a);
-        i += 1;
-    }
-    for e in env::vars() {
-        let (n, v) = e;
-        env(n, v);
-    }
+struct CommandRec {
 }
 
-fn arg(i: i32, v: String) {
-    println!("argv[{}] = {}", i, v);
+fn help() {
 }
 
-fn env(n: String, v: String) {
-    println!("{}={}", n, v);
+fn main() -> Result<(), ()> {
+    let commands: BTreeMap<&str, CommandRec>;
+    let mut args = env::args();
+    args.next();
+    if args.len() < 1 {
+        println!("Missing arguments");
+        return Err(());
+    }
+    let cmd = args.next();
+    println!("Command: {}", cmd.expect("None in next()"));
+    return Ok(());
 }
