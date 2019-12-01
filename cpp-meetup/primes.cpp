@@ -58,6 +58,24 @@ void primes4(std::vector<int>& p, size_t n) {
     }
 }
 
+void primes5(std::vector<int>& p, size_t n) {
+    p.push_back(2);
+    for (int i = 3; i < n; ++i) {
+        bool is_p = true;
+        std::find_if(p.begin(), p.end(), [&](auto j) {
+            if (j * j > i)
+                return true;
+            if (i % j == 0) {
+                is_p = false;
+                return true;
+            }
+            return false;
+        });
+        if (is_p)
+            p.push_back(i);
+    }
+}
+
 int main(int argc, char* argv[])
 {
     const int n = 100'000'000;
@@ -75,6 +93,9 @@ int main(int argc, char* argv[])
         break;
     case 4:
         primes4(p, n);
+        break;
+    case 5:
+        primes5(p, n);
         break;
     }
     //for (auto i: p)
