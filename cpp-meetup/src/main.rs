@@ -1,13 +1,14 @@
 fn main() {
     let mut cache: Vec<u64> = Vec::new();
-    for p in 2u64.. {
+    for p in 2u64..100000000 {
         let has_divisor = cache
             .iter()
             .take_while(|&c| c * c <= p)
             .any(|c| p % c == 0);
         if !has_divisor {
-            println!("{}", p);
+            //println!("{}", p);
             cache.push(p);
         }
     }
+    println!("Found {} primes", cache.len());
 }
