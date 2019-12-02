@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <vector>
 
-void primes1(std::vector<int>& cache, size_t n) {
+void primes1(std::vector<uint64_t>& cache, size_t n) {
     for (uint64_t p = 2; p < n; p++) {
         const auto boundary = std::find_if(cache.begin(), cache.end(),
                                            [&](auto c) { return c * c > p; });
@@ -14,7 +14,7 @@ void primes1(std::vector<int>& cache, size_t n) {
     }
 }
 
-void primes2(std::vector<int>& cache, size_t n) {
+void primes2(std::vector<uint64_t>& cache, size_t n) {
     uint64_t boundary = 0;
     for (uint64_t p = 2; p < n; p++) {
         boundary = std::find_if(cache.begin() + boundary, cache.end(),
@@ -28,9 +28,9 @@ void primes2(std::vector<int>& cache, size_t n) {
     }
 }
 
-void primes3(std::vector<int>& p, size_t n) {
+void primes3(std::vector<uint64_t>& p, size_t n) {
     p.push_back(2);
-    for (int i = 3; i < n; ++i) {
+    for (uint64_t i = 3; i < n; ++i) {
         bool is_p = true;
         for (auto j = p.begin(); j != p.end() && *j * *j <= i; ++j) {
             if (i % *j == 0) {
@@ -43,9 +43,9 @@ void primes3(std::vector<int>& p, size_t n) {
     }
 }
 
-void primes4(std::vector<int>& p, size_t n) {
+void primes4(std::vector<uint64_t>& p, size_t n) {
     p.push_back(2);
-    for (int i = 3; i < n; ++i) {
+    for (uint64_t i = 3; i < n; ++i) {
         bool is_p = true;
         for (auto j = p.begin(); *j * *j <= i; ++j) {
             if (i % *j == 0) {
@@ -58,9 +58,9 @@ void primes4(std::vector<int>& p, size_t n) {
     }
 }
 
-void primes5(std::vector<int>& p, size_t n) {
+void primes5(std::vector<uint64_t>& p, size_t n) {
     p.push_back(2);
-    for (int i = 3; i < n; ++i) {
+    for (uint64_t i = 3; i < n; ++i) {
         bool is_p = true;
         std::find_if(p.begin(), p.end(), [&](auto j) {
             if (j * j > i)
@@ -78,9 +78,9 @@ void primes5(std::vector<int>& p, size_t n) {
 
 int main(int argc, char* argv[])
 {
-    const int n = 100'000'000;
+    const uint64_t n = 100'000'000;
     const int alg = argc > 1 ? std::stoi(argv[1]) : 4;
-    std::vector<int> p;
+    std::vector<uint64_t> p;
     switch (alg) {
     case 1:
         primes1(p, n);
