@@ -1,9 +1,0 @@
-[package]
-name = "workshop"
-version = "0.1.0"
-authors = ["Martin Beran <martin.beran@avast.com>"]
-edition = "2018"
-
-[dependencies]
-md5 = "0.6.1"
-walkdir = "2"
