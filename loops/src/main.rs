@@ -44,6 +44,7 @@ fn main() {
     }
 
     // for
+    let a = [10, 20, 30, 40, 50];
     for v in a {
         println!("a[?]={v}");
     }
@@ -52,7 +53,7 @@ fn main() {
     }
 
     // Fibonacci
-    for v in (0..50) {
+    for v in 0..50 {
         println!("fib({v})={}", fib(v));
     }
 }
