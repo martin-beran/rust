@@ -3,4 +3,38 @@ Rust
 
 https://www.rust-lang.org
 
+Types
+    Scalar
+        Integer
+            i8 u8 i16 u16 i32 u32 i64 u64 i128 u128
+            isize usize // archicecture dependent, used for indices
+            Literals
+                123i16 // type by suffix
+                32_768 // decimal, _ digit grouping
+                0xff // hex
+                0o34 // octal
+                0b1111_0000 // binary
+                b'a' // byte (only u8)
+        Floating point
+            f32 f64
+        Boolean
+            bool false true
+        Character
+            char // 4 byte Unicode
+    Compound
+        Tuple
+            ()
+            let tup: (i32, f64, bool) = (1_234, 1.2e3, true)
+        Array
+            let a: [i32; 5] = [10, 20, 30, 40, 50]
+            let a = [3; 5] // [3, 3, 3, 3, 3]
 
+enum Option<T> {
+    None,
+    Some(T),
+}
+
+enum Result<T, E> {
+    Ok(T),
+    Err(E),
+}
