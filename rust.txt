@@ -16,7 +16,8 @@ Types
                 0b1111_0000 // binary
                 b'a' // byte (only u8)
         Floating point
-            f32 f64
+            f32
+            f64 // default
         Boolean
             bool false true
         Character
