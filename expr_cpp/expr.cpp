@@ -36,7 +36,7 @@ private:
 template <class T> class op1: public expr<T> {
 public:
     using expr_t = expr<T>;
-    using child_ptr = std::shared_ptr<expr_t>;
+    using child_ptr = std::unique_ptr<expr_t>;
     std::optional<T> eval() const override {
         if (auto v = child().eval())
             return eval_op(*v);
@@ -88,7 +88,7 @@ protected:
 template <class T> class op2: public expr<T> {
 public:
     using expr_t = expr<T>;
-    using child_ptr = std::shared_ptr<expr_t>;
+    using child_ptr = std::unique_ptr<expr_t>;
     std::optional<T> eval() const override {
         if (auto [a, b] = std::pair{left().eval(), right().eval()}; a && b)
             return  eval_op(*a, *b);
@@ -210,23 +210,23 @@ protected:
 
 namespace parser {
 
-template <class T> std::shared_ptr<expr<T>> expression();
+template <class T> std::unique_ptr<expr<T>> expression();
 
-template <class T> std::shared_ptr<expr<T>> terminal()
+template <class T> std::unique_ptr<expr<T>> terminal()
 {
     T v;
     if (std::cin >> v)
-        return std::make_shared<value<T>>(v);
+        return std::make_unique<value<T>>(v);
     return nullptr;
 }
 
-template <class T> std::shared_ptr<expr<T>> factor()
+template <class T> std::unique_ptr<expr<T>> factor()
 {
-    std::shared_ptr<op1<T>> m;
+    std::unique_ptr<op1<T>> m;
     if (char c; std::cin >> c) {
         switch (c) {
         case '-':
-            m = std::make_shared<op_minus<T>>();
+            m = std::make_unique<op_minus<T>>();
             break;
         case '(':
             std::cin.unget();
@@ -236,7 +236,7 @@ template <class T> std::shared_ptr<expr<T>> factor()
             break;
         }
         if (char c; std::cin >> c) {
-            std::shared_ptr<expr<T>> e;
+            std::unique_ptr<expr<T>> e;
             switch (c) {
             case '(':
                 e = expression<T>();
@@ -268,17 +268,17 @@ template <class T> std::shared_ptr<expr<T>> factor()
     return nullptr;
 }
 
-template <class T> std::shared_ptr<expr<T>> term()
+template <class T> std::unique_ptr<expr<T>> term()
 {
     if (auto f1 = factor<T>()) {
         for (char c; std::cin >> c;) {
-            std::shared_ptr<op2<T>> op{};
+            std::unique_ptr<op2<T>> op{};
             switch (c) {
             case '*':
-                op = std::make_shared<op_mul<T>>();
+                op = std::make_unique<op_mul<T>>();
                 break;
             case '/':
-                op = std::make_shared<op_div<T>>();
+                op = std::make_unique<op_div<T>>();
                 break;
             default:
                 std::cin.unget();
@@ -296,17 +296,17 @@ template <class T> std::shared_ptr<expr<T>> term()
         return nullptr;
 }
 
-template <class T> std::shared_ptr<expr<T>> expression()
+template <class T> std::unique_ptr<expr<T>> expression()
 {
     if (auto t1 = term<T>()) {
         for (char c; std::cin >> c;) {
-            std::shared_ptr<op2<T>> op{};
+            std::unique_ptr<op2<T>> op{};
             switch (c) {
             case '+':
-                op = std::make_shared<op_add<T>>();
+                op = std::make_unique<op_add<T>>();
                 break;
             case '-':
-                op = std::make_shared<op_sub<T>>();
+                op = std::make_unique<op_sub<T>>();
                 break;
             default:
                 std::cin.unget();
@@ -326,7 +326,7 @@ template <class T> std::shared_ptr<expr<T>> expression()
 
 } // namespace parser
 
-template <class T> std::shared_ptr<const expr<T>> parse()
+template <class T> std::unique_ptr<const expr<T>> parse()
 {
     auto p = parser::expression<T>();
     if (char c; std::cin >> c)
