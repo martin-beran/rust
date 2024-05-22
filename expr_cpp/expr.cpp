@@ -208,7 +208,7 @@ protected:
     }
 };
 
-namespace parser_unsigned {
+namespace parser {
 
 template <class T> std::shared_ptr<expr<T>> expression();
 
@@ -324,11 +324,11 @@ template <class T> std::shared_ptr<expr<T>> expression()
         return nullptr;
 }
 
-}
+} // namespace parser
 
 template <class T> std::shared_ptr<const expr<T>> parse()
 {
-    auto p = parser_unsigned::expression<T>();
+    auto p = parser::expression<T>();
     if (char c; std::cin >> c)
         return nullptr;
     return p;
@@ -377,7 +377,7 @@ s = std::string (only binary +, whitespace needed around operators and
     return EXIT_FAILURE;
 }
 
-}
+} // namespace
 
 int main(int argc, char* argv[])
 {
