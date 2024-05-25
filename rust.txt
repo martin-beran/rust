@@ -39,3 +39,25 @@ enum Result<T, E> {
     Ok(T),
     Err(E),
 }
+
+Control expressions/statements
+    if EXPR { ... }
+    if EXPR { ... } else { ... }
+    if EXPR { ... } else if EXPR { ... } else { ... }
+    if let PATTERN = EXPR { ... } else { ... }
+    loop { ... break; break EXPR; break 'LABEL; break 'LABEL EXPR; ... }
+    loop { ... continue; continue 'LABEL; ... }
+    'LABEL: loop { ... }
+    while EXPR { ... }
+    while let PATTERN = EXPR { ... }
+    'LABEL: while EXPR { ... }
+    for PATTERN in EXPR { ... }
+    'LABEL: for PATTERN in ITER_EXPR { ... }
+    match EXPR {
+        PATTERN => EXPR,
+        PATTERN => { ... }
+        other => EXPR(other),
+        other => { ... use(other) ... }
+        _ => EXPR,
+        _ => { ... }
+    }
