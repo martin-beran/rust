@@ -1,3 +1,12 @@
+// A graph of nodes connected by shared and weak pointers in Rust
+//
+// This is a reimplementation of C++ program graph_cpp.
+// A classical example of a dynamic graph data structure, with ownership managed by shared and weak
+// pointers. The graph topology is like in an application that dynamically creates sessions and
+// registers handlers for events on each session. Handlers keep references (smart pointers) to
+// sessions. If all handlers for a session are deleted (executed or canceled), the session is deleted
+// as well.
+
 #include <cstdlib>
 #include <iostream>
 #include <memory>
@@ -11,6 +20,7 @@
 
 namespace {
 
+// A registered session
 class session {
 public:
     session(std::string_view name): _name(name) {}
@@ -24,6 +34,7 @@ private:
     std::string _name;
 };
 
+// A registered handler
 class handler {
 public:
     handler(std::string_view name): _name(name) {}
@@ -50,6 +61,7 @@ private:
     std::weak_ptr<session> weak_p{};
 };
 
+// A table of all registered handlers
 class hnd_table_t {
 public:
     void create_session(std::string_view handler_name, std::string_view session_name) {
@@ -117,6 +129,9 @@ auto split(std::string_view s)
     return res;
 }
 
+// The main loop.
+//
+// It reads and process lines with commands from stdin and executes them.
 int run()
 {
     hnd_table_t hnd_table{};
@@ -150,6 +165,7 @@ int run()
     return EXIT_SUCCESS;
 }
 
+// Reports usage instructions and return failure exit code.
 int usage(char* argv0)
 {
     std::cerr << "usage: " << argv0 << R"(
@@ -181,6 +197,7 @@ H1 -> H2 ... creates a new handler H1 with a weak pointer pointing to the
 
 } // namespace
 
+// The program entry point.
 int main(int argc, char* argv[])
 {
     if (argc != 1)
