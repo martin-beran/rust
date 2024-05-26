@@ -26,19 +26,51 @@ Types
         Tuple
             ()
             let tup: (i32, f64, bool) = (1_234, 1.2e3, true)
+            let tup01 = (tup.0, tup.1)
         Array
             let a: [i32; 5] = [10, 20, 30, 40, 50]
             let a = [3; 5] // [3, 3, 3, 3, 3]
+    Slice
+        seq[first..last] // 0-base indices, last = 1 after last position
+        seq[first..]
+        seq[..last]
+        seq[..]
+        seq.len() // size (length, number of elements)
+    Struct
+        struct Name {
+            field1: type1,
+            ...
+            fiendN: typeN,
+        }
+        let s1 = Name { field1: val1, ..., fieldN: valN, };
+        fn build_Name(field2: type2, field3: type3) {
+            Name { field1: val1, field2, field3, ..., fieldN:valN, }
+        }
+        let s2 = Name { field1: val1_2, ..s1 }
+        struct UnitLikeStruct; // implicitly defines constant UnitLikeStruct
+        struct TupleStruct(i32, i32, i32) // each is a different type, even with same fields
 
-enum Option<T> {
-    None,
-    Some(T),
-}
+Type alias
+    type Alias = Type;
 
-enum Result<T, E> {
-    Ok(T),
-    Err(E),
-}
+Variables and constants
+    let immutable_variable = 1;
+    let immutable_variable: i32 = 132;
+    let mut mutable_variable = 2;
+    let mut mutable_variable: i32 = 232;
+    const constant: i32 = 0; // must be explicitly typed
+
+Optional value
+    enum Option<T> {
+        None,
+        Some(T),
+    }
+
+Value or error
+    enum Result<T, E> {
+        Ok(T),
+        Err(E),
+    }
 
 Control expressions/statements
     if EXPR { ... }
