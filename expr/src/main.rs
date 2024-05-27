@@ -48,6 +48,14 @@ fn run<T>() -> ExitCode {
         None => println!("no value"),
         Some(r) => println!("{}", r),
     }
+    let v: Box<dyn Expr<u32>> = Box::new(Value::new(2));
+    let m = v;
+    m.display();
+    println!("");
+    match m.eval() {
+        None => println!("no value"),
+        Some(r) => println!("{}", r),
+    }
     ExitCode::SUCCESS
 }
 
@@ -99,17 +107,21 @@ mod op_minus {
     use crate::Op1;
     use std::ops::Neg;
 
-    pub struct OpMinus<T: Clone + Neg<Output = T>> {
+    trait OpMinusTypes: Clone + Neg<Output = Self> {
+    }
+    impl OpMinusTypes for i32 {
+    }
+    pub struct OpMinus<T: OpMinusTypes> {
         child: Box<dyn Expr<T>>,
     }
-    impl<T: Clone + Neg<Output = T>> OpMinus<T> {
+    impl<T: OpMinusTypes> OpMinus<T> {
         pub fn new(child: Box<dyn Expr<T>>) -> OpMinus<T> {
             OpMinus {
                 child,
             }
         }
     }
-    impl<T: Clone + Neg<Output = T>> Expr<T> for OpMinus<T> {
+    impl<T: OpMinusTypes> Expr<T> for OpMinus<T> {
         fn eval(&self) -> Option<T> {
             self.op1_eval()
         }
@@ -117,7 +129,7 @@ mod op_minus {
             self.op1_display()
         }
     }
-    impl<T: Clone + Neg<Output = T>> Op1<T> for OpMinus<T> {
+    impl<T: OpMinusTypes> Op1<T> for OpMinus<T> {
         fn child(&self) -> &dyn Expr<T> {
             self.child.as_ref()
         }
