@@ -75,16 +75,13 @@ fn run<T>() -> ExitCode {
     ExitCode::SUCCESS
 }
 
-trait ExprEval<T> {
+trait Expr<T> {
     fn eval(&self) -> Option<T>;
-}
-trait ExprDisplay<T> {
     fn display(&self);
 }
-trait Expr<T>: ExprEval<T> + ExprDisplay<T> {}
 
 mod value {
-    use crate::{Expr, ExprEval, ExprDisplay};
+    use crate::Expr;
 
     pub struct Value<T> {
         v: T,
@@ -96,43 +93,38 @@ mod value {
             }
         }
     }
-    impl<T: Clone + std::fmt::Display> Expr<T> for Value<T> {}
-    impl<T: Clone> ExprEval<T> for Value<T> {
+    impl<T: Clone + std::fmt::Display> Expr<T> for Value<T> {
         fn eval(&self) -> Option<T> {
             Some(self.v.clone())
         }
-    }
-    impl<T: std::fmt::Display> ExprDisplay<T> for Value<T> {
         fn display(&self) {
             print!("({})", self.v)
         }
     }
 }
 
-trait Op1Child<T> {
-    fn child(&self) -> &dyn Expr<T>;
-}
-trait Op1Eval<T>: ExprEval<T> + Op1Child<T> {
+trait Op1<T>: Expr<T> + Op1Common<T> {
     type Eval: Op1Evaluator<T>;
     fn op1_eval(&self) -> Option<T> {
         Self::Eval::eval_op(&self.child().eval())
     }
-}
-trait Op1Evaluator<T> {
-    fn eval_op(v: &Option::<T>) -> Option<T>;
-}
-trait Op1Display<T>: ExprDisplay<T> + Op1Child<T> {
     fn op1_display(&self) {
         print!("(");
         self.display_op();
         self.child().display();
         print!(")");
     }
+}
+trait Op1Common<T> {
+    fn child(&self) -> &dyn Expr<T>;
     fn display_op(&self);
+}
+trait Op1Evaluator<T> {
+    fn eval_op(v: &Option::<T>) -> Option<T>;
 }
 
 mod op_minus {
-    use crate::{Expr, ExprEval, ExprDisplay, Op1Child, Op1Eval, Op1Evaluator, Op1Display};
+    use crate::{Expr, Op1, Op1Common, Op1Evaluator};
 
     pub struct OpMinus<T> {
         child: Box<dyn Expr<T>>,
@@ -144,20 +136,12 @@ mod op_minus {
             }
         }
     }
-    impl<T> Expr<T> for OpMinus<T> where OpMinus<T>: Op1Eval<T> {}
-    impl<T> ExprEval<T> for OpMinus<T> where OpMinus<T>: Op1Eval<T> {
+    impl<T> Expr<T> for OpMinus<T> where OpMinus<T>: Op1<T> {
         fn eval(&self) -> Option<T> {
             self.op1_eval()
         }
-    }
-    impl<T> ExprDisplay<T> for OpMinus<T> {
         fn display(&self) {
             self.op1_display()
-        }
-    }
-    impl<T> Op1Child<T> for OpMinus<T> {
-        fn child(&self) -> &dyn Expr<T> {
-            self.child.as_ref()
         }
     }
     pub struct OpWithMinus;
@@ -175,11 +159,14 @@ mod op_minus {
             None
         }
     }
-    impl Op1Eval<i32> for OpMinus<i32> { type Eval = OpWithMinus; }
-    impl Op1Eval<u32> for OpMinus<u32> { type Eval = OpNoMinus; }
-    impl Op1Eval<f64> for OpMinus<f64> { type Eval = OpWithMinus; }
-    impl Op1Eval<String> for OpMinus<String> { type Eval = OpNoMinus; }
-    impl<T> Op1Display<T> for OpMinus<T> {
+    impl Op1<i32> for OpMinus<i32> { type Eval = OpWithMinus; }
+    impl Op1<u32> for OpMinus<u32> { type Eval = OpNoMinus; }
+    impl Op1<f64> for OpMinus<f64> { type Eval = OpWithMinus; }
+    impl Op1<String> for OpMinus<String> { type Eval = OpNoMinus; }
+    impl<T> Op1Common<T> for OpMinus<T> {
+        fn child(&self) -> &dyn Expr<T> {
+            self.child.as_ref()
+        }
         fn display_op(&self) {
             print!("-");
         }
