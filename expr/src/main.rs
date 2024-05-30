@@ -49,7 +49,23 @@ fn run<T>() -> ExitCode {
         Some(r) => println!("{}", r),
     }
     let v: Box<dyn Expr<u32>> = Box::new(Value::new(2));
-    let m = v;
+    let m: Box<dyn Expr<u32>> = Box::new(OpMinus::new(v));
+    m.display();
+    println!("");
+    match m.eval() {
+        None => println!("no value"),
+        Some(r) => println!("{}", r),
+    }
+    let v: Box<dyn Expr<f64>> = Box::new(Value::new(2.34));
+    let m: Box<dyn Expr<f64>> = Box::new(OpMinus::new(v));
+    m.display();
+    println!("");
+    match m.eval() {
+        None => println!("no value"),
+        Some(r) => println!("{}", r),
+    }
+    let v: Box<dyn Expr<String>> = Box::new(Value::new("abc".to_string()));
+    let m: Box<dyn Expr<String>> = Box::new(OpMinus::new(v));
     m.display();
     println!("");
     match m.eval() {
@@ -128,8 +144,8 @@ mod op_minus {
             }
         }
     }
-    impl<T> Expr<T> for OpMinus<T> {}
-    impl<T> ExprEval<T> for OpMinus<T> {
+    impl<T> Expr<T> for OpMinus<T> where OpMinus<T>: Op1Eval<T> {}
+    impl<T> ExprEval<T> for OpMinus<T> where OpMinus<T>: Op1Eval<T> {
         fn eval(&self) -> Option<T> {
             self.op1_eval()
         }
@@ -144,7 +160,7 @@ mod op_minus {
             self.child.as_ref()
         }
     }
-    struct OpWithMinus;
+    pub struct OpWithMinus;
     impl<T: Copy + std::ops::Neg<Output = T>> Op1Evaluator<T> for OpWithMinus {
         fn eval_op(v: &Option::<T>) -> Option<T> {
             match v {
@@ -153,7 +169,7 @@ mod op_minus {
             }
         }
     }
-    struct OpNoMinus;
+    pub struct OpNoMinus;
     impl<T> Op1Evaluator<T> for OpNoMinus {
         fn eval_op(_: &Option::<T>) -> Option<T> {
             None
