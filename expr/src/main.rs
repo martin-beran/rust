@@ -1,4 +1,4 @@
-use expr::Expr;
+use expr::{Expr, op2::Op2Common, op_add::OpAdd, op_sub::OpSub, op_mul::OpMul, op_div::OpDiv};
 use std::env;
 use std::io;
 use std::process::{ExitCode, Termination};
@@ -39,8 +39,16 @@ s = str (only binary +, whitespace needed around operators and parentheses)
     ExitCode::FAILURE
 }
 
-fn run<T: std::fmt::Display>() -> ExitCode {
-    if let Some(e) = parse::<T>() {
+fn run<T: std::fmt::Display>() -> ExitCode where OpAdd<T>: Op2Common<T>, OpSub<T>: Op2Common<T> {
+    let mut input = String::new();
+    match io::stdin().read_line(&mut input) {
+        Ok(_) => {}
+        Err(error) => {
+            println!("Cannot read expression: {error}");
+            return ExitCode::FAILURE;
+        }
+    }
+    if let Some(e) = parser::parse::<T>(&input) {
         e.display();
         println!("");
         if let Some(v) = e.eval() {
@@ -52,12 +60,6 @@ fn run<T: std::fmt::Display>() -> ExitCode {
         println!("invalid expression");
     }
     ExitCode::SUCCESS
-}
-
-fn parse<T>() -> Option<Box<dyn Expr<T>>> {
-    let e = parser::expression::<T>();
-    
-    e
 }
 
 mod expr {
@@ -89,10 +91,10 @@ mod expr {
         }
     }
 
-    mod op1 {
+    pub mod op1 {
         use super::Expr;
 
-        pub(super) trait Op1<T>: Expr<T> + Op1Common<T> {
+        pub trait Op1<T>: Expr<T> + Op1Common<T> {
             type Eval: Op1Evaluator<T>;
             fn op1_eval(&self) -> Option<T> {
                 Self::Eval::eval_op(&self.child().eval())
@@ -104,8 +106,9 @@ mod expr {
                 print!(")");
             }
         }
-        pub(super) trait Op1Common<T> {
+        pub trait Op1Common<T> {
             fn child(&self) -> &dyn Expr<T>;
+            fn set_child(&mut self, c: Box<dyn Expr<T>>);
             fn display_op(&self);
         }
         pub(super) trait Op1Evaluator<T> {
@@ -118,12 +121,12 @@ mod expr {
         use super::op1::{Op1, Op1Common, Op1Evaluator};
 
         pub struct OpMinus<T> {
-            child: Box<dyn Expr<T>>,
+            child: Option<Box<dyn Expr<T>>>,
         }
         impl<T> OpMinus<T> {
-            pub fn new(child: Box<dyn Expr<T>>) -> OpMinus<T> {
+            pub fn new() -> OpMinus<T> {
                 OpMinus {
-                    child,
+                    child: None,
                 }
             }
         }
@@ -156,7 +159,10 @@ mod expr {
         impl Op1<String> for OpMinus<String> { type Eval = OpNoMinus; }
         impl<T> Op1Common<T> for OpMinus<T> {
             fn child(&self) -> &dyn Expr<T> {
-                self.child.as_ref()
+                self.child.as_ref().unwrap().as_ref()
+            }
+            fn set_child(&mut self, c: Box<dyn Expr<T>>) {
+                self.child = Some(c);
             }
             fn display_op(&self) {
                 print!("-");
@@ -164,10 +170,10 @@ mod expr {
         }
     }
 
-    mod op2 {
+    pub mod op2 {
         use super::Expr;
 
-        pub(super) trait Op2<T>: Expr<T> + Op2Common<T> {
+        pub trait Op2<T>: Expr<T> + Op2Common<T> {
             type Eval: Op2Evaluator<T>;
             fn op2_eval(&self) -> Option<T> {
                 Self::Eval::eval_op(&self.left().eval(), &self.right().eval())
@@ -180,9 +186,12 @@ mod expr {
                 println!(")");
             }
         }
-        pub(super) trait Op2Common<T> {
+        pub trait Op2Common<T> {
+            fn to_expr(self) -> Box<dyn Expr<T>>;
             fn left(&self) -> &dyn Expr<T>;
+            fn set_left(&mut self, l: Box<dyn Expr<T>>);
             fn right(&self) -> &dyn Expr<T>;
+            fn set_right(&mut self, l: Box<dyn Expr<T>>);
             fn display_op(&self);
         }
         pub(super) trait Op2Evaluator<T> {
@@ -190,19 +199,19 @@ mod expr {
         }
     }
 
-    mod op_add {
+    pub mod op_add {
         use super::Expr;
         use super::op2::{Op2, Op2Common, Op2Evaluator};
 
         pub struct OpAdd<T> {
-            left: Box<dyn Expr<T>>,
-            right: Box<dyn Expr<T>>,
+            left: Option<Box<dyn Expr<T>>>,
+            right: Option<Box<dyn Expr<T>>>,
         }
         impl<T> OpAdd<T> {
-            pub fn new(left: Box<dyn Expr<T>>, right: Box<dyn Expr<T>>) -> OpAdd<T> {
+            pub fn new() -> OpAdd<T> {
                 OpAdd {
-                    left,
-                    right,
+                    left: None,
+                    right: None,
                 }
             }
         }
@@ -238,12 +247,21 @@ mod expr {
         impl Op2<u32> for OpAdd<u32> { type Eval = OpWithAdd; }
         impl Op2<f64> for OpAdd<f64> { type Eval = OpWithAdd; }
         impl Op2<String> for OpAdd<String> { type Eval = OpStringAdd; }
-        impl<T> Op2Common<T> for OpAdd<T> {
+        impl<T> Op2Common<T> for OpAdd<T> where OpAdd<T>: Op2<T> {
+            fn to_expr(self) -> Box<dyn Expr<T>> {
+                Box::new(self)
+            }
             fn left(&self) -> &dyn Expr<T> {
-                self.left.as_ref()
+                self.left.as_ref().unwrap().as_ref()
+            }
+            fn set_left(&mut self, l: Box<dyn Expr<T>>) {
+                self.left = Some(l);
             }
             fn right(&self) -> &dyn Expr<T> {
-                self.right.as_ref()
+                self.right.as_ref().unwrap().as_ref()
+            }
+            fn set_right(&mut self, l: Box<dyn Expr<T>>) {
+                self.right = Some(l);
             }
             fn display_op(&self) {
                 print!("+");
@@ -251,19 +269,19 @@ mod expr {
         }
     }
 
-    mod op_sub {
+    pub mod op_sub {
         use super::Expr;
         use super::op2::{Op2, Op2Common, Op2Evaluator};
 
         pub struct OpSub<T> {
-            left: Box<dyn Expr<T>>,
-            right: Box<dyn Expr<T>>,
+            left: Option<Box<dyn Expr<T>>>,
+            right: Option<Box<dyn Expr<T>>>,
         }
         impl<T> OpSub<T> {
-            pub fn new(left: Box<dyn Expr<T>>, right: Box<dyn Expr<T>>) -> OpSub<T> {
+            pub fn new() -> OpSub<T> {
                 OpSub {
-                    left,
-                    right,
+                    left: None,
+                    right: None,
                 }
             }
         }
@@ -297,10 +315,16 @@ mod expr {
         impl Op2<String> for OpSub<String> { type Eval = OpNoOp2; }
         impl<T> Op2Common<T> for OpSub<T> {
             fn left(&self) -> &dyn Expr<T> {
-                self.left.as_ref()
+                self.left.as_ref().unwrap().as_ref()
+            }
+            fn set_left(&mut self, l: Box<dyn Expr<T>>) {
+                self.left = Some(l);
             }
             fn right(&self) -> &dyn Expr<T> {
-                self.right.as_ref()
+                self.right.as_ref().unwrap().as_ref()
+            }
+            fn set_right(&mut self, l: Box<dyn Expr<T>>) {
+                self.right = Some(l);
             }
             fn display_op(&self) {
                 print!("-");
@@ -308,20 +332,20 @@ mod expr {
         }
     }
 
-    mod op_mul {
+    pub mod op_mul {
         use super::Expr;
         use super::op2::{Op2, Op2Common, Op2Evaluator};
         use super::op_sub::OpNoOp2;
 
         pub struct OpMul<T> {
-            left: Box<dyn Expr<T>>,
-            right: Box<dyn Expr<T>>,
+            left: Option<Box<dyn Expr<T>>>,
+            right: Option<Box<dyn Expr<T>>>,
         }
         impl<T> OpMul<T> {
-            pub fn new(left: Box<dyn Expr<T>>, right: Box<dyn Expr<T>>) -> OpMul<T> {
+            pub fn new() -> OpMul<T> {
                 OpMul {
-                    left,
-                    right,
+                    left: None,
+                    right: None,
                 }
             }
         }
@@ -349,10 +373,16 @@ mod expr {
         impl Op2<String> for OpMul<String> { type Eval = OpNoOp2; }
         impl<T> Op2Common<T> for OpMul<T> {
             fn left(&self) -> &dyn Expr<T> {
-                self.left.as_ref()
+                self.left.as_ref().unwrap().as_ref()
+            }
+            fn set_left(&mut self, l: Box<dyn Expr<T>>) {
+                self.left = Some(l);
             }
             fn right(&self) -> &dyn Expr<T> {
-                self.right.as_ref()
+                self.right.as_ref().unwrap().as_ref()
+            }
+            fn set_right(&mut self, l: Box<dyn Expr<T>>) {
+                self.right = Some(l);
             }
             fn display_op(&self) {
                 print!("*");
@@ -360,20 +390,20 @@ mod expr {
         }
     }
 
-    mod op_div {
+    pub mod op_div {
         use super::Expr;
         use super::op2::{Op2, Op2Common, Op2Evaluator};
         use super::op_sub::OpNoOp2;
 
         pub struct OpDiv<T> {
-            left: Box<dyn Expr<T>>,
-            right: Box<dyn Expr<T>>,
+            left: Option<Box<dyn Expr<T>>>,
+            right: Option<Box<dyn Expr<T>>>,
         }
         impl<T> OpDiv<T> {
-            pub fn new(left: Box<dyn Expr<T>>, right: Box<dyn Expr<T>>) -> OpDiv<T> {
+            pub fn new() -> OpDiv<T> {
                 OpDiv {
-                    left,
-                    right,
+                    left: None,
+                    right: None,
                 }
             }
         }
@@ -405,10 +435,16 @@ mod expr {
         impl Op2<String> for OpDiv<String> { type Eval = OpNoOp2; }
         impl<T> Op2Common<T> for OpDiv<T> {
             fn left(&self) -> &dyn Expr<T> {
-                self.left.as_ref()
+                self.left.as_ref().unwrap().as_ref()
+            }
+            fn set_left(&mut self, l: Box<dyn Expr<T>>) {
+                self.left = Some(l);
             }
             fn right(&self) -> &dyn Expr<T> {
-                self.right.as_ref()
+                self.right.as_ref().unwrap().as_ref()
+            }
+            fn set_right(&mut self, l: Box<dyn Expr<T>>) {
+                self.right = Some(l);
             }
             fn display_op(&self) {
                 print!("/");
@@ -418,9 +454,42 @@ mod expr {
 }
 
 mod parser {
-    use std::io;
+    use super::expr::Expr;
+    use super::expr::{op1::Op1Common, op2::Op2Common};
+    use super::expr::{value::Value, op_minus::OpMinus};
+    use super::expr::{op_add::OpAdd, op_sub::OpSub, op_mul::OpMul, op_div::OpDiv};
 
-    pub fn expression<T>() -> Option<Box<dyn Expr<T>>> {
-        None
+    pub fn parse<T>(s: &str) -> Option<Box<dyn Expr<T>>> where OpAdd<T>: Op2Common<T>, OpSub<T>: Op2Common<T> {
+        expression::<T>(s.trim()).0
+    }
+
+    fn expression<T>(s: &str) -> (Option<Box<dyn Expr<T>>>, &str) where OpAdd<T>: Op2Common<T>, OpSub<T>: Op2Common<T> {
+        if let (Some(mut t1), s) = term::<T>(s) {
+            loop {
+                let s = s.trim_start();
+                if s.is_empty() {
+                    return (Some(t1), &s);
+                }
+                let mut op: Option<Box<dyn Op2Common<T>>>;
+                match s.chars().next().unwrap() {
+                    '+' => op = Some(Box::new(OpAdd::<T>::new())),
+                    '-' => op = Some(Box::new(OpSub::<T>::new())),
+                    _ => return (Some(t1), &s)
+                }
+                if let(Some(t2), s) = term::<T>(s) {
+                    op.as_deref_mut().unwrap().set_left(t1);
+                    op.as_deref_mut().unwrap().set_right(t2);
+                    t1 = op.unwrap();
+                } else {
+                    return (None, s)
+                }
+            }
+        } else {
+            (None, &s)
+        }
+    }
+
+    fn term<T>(s: &str) -> (Option<Box<dyn Expr<T>>>, &str) {
+        (None, &s)
     }
 }
