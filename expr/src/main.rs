@@ -1,5 +1,6 @@
 use expr::{op1::Op1Common, op_minus::OpMinus};
 use expr::{op2::Op2Common, op_add::OpAdd, op_sub::OpSub, op_mul::OpMul, op_div::OpDiv};
+use parser::{TerminalEnd, TerminalEndImpl};
 use std::env;
 use std::io;
 use std::process::{ExitCode, Termination};
@@ -40,8 +41,8 @@ s = str (only binary +, whitespace needed around operators and parentheses)
     ExitCode::FAILURE
 }
 
-fn run<T: std::fmt::Display>() -> ExitCode where
-    OpMinus<T>: Op1Common<T>,
+fn run<T: 'static + Clone + std::fmt::Display + std::str::FromStr>() -> ExitCode where
+    TerminalEndImpl<T>: TerminalEnd, OpMinus<T>: Op1Common<T>,
     OpAdd<T>: Op2Common<T>, OpSub<T>: Op2Common<T>, OpMul<T>: Op2Common<T>, OpDiv<T>: Op2Common<T>
 {
     let mut input = String::new();
@@ -191,7 +192,7 @@ mod expr {
                 self.left().display();
                 self.display_op();
                 self.right().display();
-                println!(")");
+                print!(")");
             }
         }
         // https://articles.bchlr.de/traits-dynamic-dispatch-upcasting
@@ -477,15 +478,16 @@ mod parser {
     use super::expr::{value::Value, op_minus::OpMinus};
     use super::expr::{op_add::OpAdd, op_sub::OpSub, op_mul::OpMul, op_div::OpDiv};
 
-    pub fn parse<T>(s: &str) -> Option<Box<dyn Expr<T>>> where
-        OpMinus<T>: Op1Common<T>,
+    pub fn parse<T: 'static + Clone + std::fmt::Display + std::str::FromStr>(s: &str) -> Option<Box<dyn Expr<T>>> where
+        TerminalEndImpl<T>: TerminalEnd, OpMinus<T>: Op1Common<T>,
         OpAdd<T>: Op2Common<T>, OpSub<T>: Op2Common<T>, OpMul<T>: Op2Common<T>, OpDiv<T>: Op2Common<T>
     {
         expression::<T>(s.trim()).0
     }
 
-    fn expression<T>(s: &str) -> (Option<Box<dyn Expr<T>>>, &str) where
-        OpMinus<T>: Op1Common<T>,
+    fn expression<T: 'static + Clone + std::fmt::Display + std::str::FromStr>(s: &str) ->
+        (Option<Box<dyn Expr<T>>>, &str) where
+        TerminalEndImpl<T>: TerminalEnd, OpMinus<T>: Op1Common<T>,
         OpAdd<T>: Op2Common<T>, OpSub<T>: Op2Common<T>, OpMul<T>: Op2Common<T>, OpDiv<T>: Op2Common<T>
     {
         if let (Some(mut t1), mut s) = term::<T>(s) {
@@ -515,8 +517,9 @@ mod parser {
         }
     }
 
-    fn term<T>(s: &str) -> (Option<Box<dyn Expr<T>>>, &str) where
-        OpMinus<T>: Op1Common<T>,
+    fn term<T: 'static + Clone + std::fmt::Display + std::str::FromStr>(s: &str) ->
+        (Option<Box<dyn Expr<T>>>, &str) where
+        TerminalEndImpl<T>: TerminalEnd, OpMinus<T>: Op1Common<T>,
         OpAdd<T>: Op2Common<T>, OpSub<T>: Op2Common<T>, OpMul<T>: Op2Common<T>, OpDiv<T>: Op2Common<T>
     {
         if let (Some(mut f1), mut s) = factor::<T>(s) {
@@ -546,8 +549,9 @@ mod parser {
         }
     }
 
-    fn factor<T>(s: &str) -> (Option<Box<dyn Expr<T>>>, &str) where
-        OpMinus<T>: Op1Common<T>,
+    fn factor<T: 'static + Clone + std::fmt::Display + std::str::FromStr>(s: &str) ->
+        (Option<Box<dyn Expr<T>>>, &str) where
+        TerminalEndImpl<T>: TerminalEnd, OpMinus<T>: Op1Common<T>,
         OpAdd<T>: Op2Common<T>, OpSub<T>: Op2Common<T>, OpMul<T>: Op2Common<T>, OpDiv<T>: Op2Common<T>
     {
         let mut s = s.trim_start();
@@ -591,10 +595,53 @@ mod parser {
         (e, s)
     }
 
-    fn terminal<T>(s: &str) -> (Option<Box<dyn Expr<T>>>, &str) where
-        OpMinus<T>: Op1Common<T>,
+    fn terminal<T: 'static + Clone + std::fmt::Display + std::str::FromStr>(s: &str) ->
+        (Option<Box<dyn Expr<T>>>, &str) where
+        TerminalEndImpl<T>: TerminalEnd, OpMinus<T>: Op1Common<T>,
         OpAdd<T>: Op2Common<T>, OpSub<T>: Op2Common<T>, OpMul<T>: Op2Common<T>, OpDiv<T>: Op2Common<T>
     {
-        (None, s)
+        let s = s.trim_start();
+        if s.is_empty() {
+            return (None, s);
+        }
+        let i = s.find(TerminalEndImpl::<T>::pattern).unwrap_or(s.len());
+        if i == 0 {
+            return (None, s)
+        }
+        if let Ok(v) = s[..i].parse::<T>() {
+            (Some(Box::new(Value::new(v))), &s[i..])
+        } else {
+            (None, s)
+        }
+    }
+
+    pub trait TerminalEnd {
+        fn pattern(c: char) -> bool;
+    }
+    pub struct TerminalEndImpl<T> {
+        dummy: std::marker::PhantomData<T>,
+    }
+    fn pattern_int(c: char) -> bool {
+        c >= '0' && c <= '9'
+    }
+    impl TerminalEnd for TerminalEndImpl<i32> {
+        fn pattern(c: char) -> bool {
+            !pattern_int(c)
+        }
+    }
+    impl TerminalEnd for TerminalEndImpl<u32> {
+        fn pattern(c: char) -> bool {
+            !pattern_int(c)
+        }
+    }
+    impl TerminalEnd for TerminalEndImpl<f64> {
+        fn pattern(c: char) -> bool {
+            !(pattern_int(c) || c == '.')
+        }
+    }
+    impl TerminalEnd for TerminalEndImpl<String> {
+        fn pattern(c: char) -> bool {
+            c == ' '
+        }
     }
 }
