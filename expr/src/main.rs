@@ -1,4 +1,5 @@
-use expr::{Expr, op2::Op2Common, op_add::OpAdd, op_sub::OpSub, op_mul::OpMul, op_div::OpDiv};
+use expr::{op1::Op1Common, op_minus::OpMinus};
+use expr::{op2::Op2Common, op_add::OpAdd, op_sub::OpSub, op_mul::OpMul, op_div::OpDiv};
 use std::env;
 use std::io;
 use std::process::{ExitCode, Termination};
@@ -39,7 +40,10 @@ s = str (only binary +, whitespace needed around operators and parentheses)
     ExitCode::FAILURE
 }
 
-fn run<T: std::fmt::Display>() -> ExitCode where OpAdd<T>: Op2Common<T>, OpSub<T>: Op2Common<T> {
+fn run<T: std::fmt::Display>() -> ExitCode where
+    OpMinus<T>: Op1Common<T>,
+    OpAdd<T>: Op2Common<T>, OpSub<T>: Op2Common<T>, OpMul<T>: Op2Common<T>, OpDiv<T>: Op2Common<T>
+{
     let mut input = String::new();
     match io::stdin().read_line(&mut input) {
         Ok(_) => {}
@@ -94,7 +98,7 @@ mod expr {
     pub mod op1 {
         use super::Expr;
 
-        pub trait Op1<T>: Expr<T> + Op1Common<T> {
+        pub(super) trait Op1<T>: Expr<T> + Op1Common<T> {
             type Eval: Op1Evaluator<T>;
             fn op1_eval(&self) -> Option<T> {
                 Self::Eval::eval_op(&self.child().eval())
@@ -107,6 +111,7 @@ mod expr {
             }
         }
         pub trait Op1Common<T> {
+            fn as_dyn_expr(self: Box<Self>) -> Box<dyn Expr<T>>;
             fn child(&self) -> &dyn Expr<T>;
             fn set_child(&mut self, c: Box<dyn Expr<T>>);
             fn display_op(&self);
@@ -157,7 +162,10 @@ mod expr {
         impl Op1<u32> for OpMinus<u32> { type Eval = OpNoMinus; }
         impl Op1<f64> for OpMinus<f64> { type Eval = OpWithMinus; }
         impl Op1<String> for OpMinus<String> { type Eval = OpNoMinus; }
-        impl<T> Op1Common<T> for OpMinus<T> {
+        impl<T: 'static> Op1Common<T> for OpMinus<T> where OpMinus<T>: Op1<T> {
+            fn as_dyn_expr(self: Box<Self>) -> Box<dyn Expr<T>> {
+                self
+            }
             fn child(&self) -> &dyn Expr<T> {
                 self.child.as_ref().unwrap().as_ref()
             }
@@ -173,7 +181,7 @@ mod expr {
     pub mod op2 {
         use super::Expr;
 
-        pub trait Op2<T>: Expr<T> + Op2Common<T> {
+        pub(super) trait Op2<T>: Expr<T> + Op2Common<T> {
             type Eval: Op2Evaluator<T>;
             fn op2_eval(&self) -> Option<T> {
                 Self::Eval::eval_op(&self.left().eval(), &self.right().eval())
@@ -186,8 +194,9 @@ mod expr {
                 println!(")");
             }
         }
+        // https://articles.bchlr.de/traits-dynamic-dispatch-upcasting
         pub trait Op2Common<T> {
-            fn to_expr(self) -> Box<dyn Expr<T>>;
+            fn as_dyn_expr(self: Box<Self>) -> Box<dyn Expr<T>>;
             fn left(&self) -> &dyn Expr<T>;
             fn set_left(&mut self, l: Box<dyn Expr<T>>);
             fn right(&self) -> &dyn Expr<T>;
@@ -247,9 +256,9 @@ mod expr {
         impl Op2<u32> for OpAdd<u32> { type Eval = OpWithAdd; }
         impl Op2<f64> for OpAdd<f64> { type Eval = OpWithAdd; }
         impl Op2<String> for OpAdd<String> { type Eval = OpStringAdd; }
-        impl<T> Op2Common<T> for OpAdd<T> where OpAdd<T>: Op2<T> {
-            fn to_expr(self) -> Box<dyn Expr<T>> {
-                Box::new(self)
+        impl<T: 'static> Op2Common<T> for OpAdd<T> where OpAdd<T>: Op2<T> {
+            fn as_dyn_expr(self: Box<Self>) -> Box<dyn Expr<T>> {
+                self
             }
             fn left(&self) -> &dyn Expr<T> {
                 self.left.as_ref().unwrap().as_ref()
@@ -313,7 +322,10 @@ mod expr {
         impl Op2<u32> for OpSub<u32> { type Eval = OpWithSub; }
         impl Op2<f64> for OpSub<f64> { type Eval = OpWithSub; }
         impl Op2<String> for OpSub<String> { type Eval = OpNoOp2; }
-        impl<T> Op2Common<T> for OpSub<T> {
+        impl<T: 'static> Op2Common<T> for OpSub<T> where OpSub<T>: Op2<T> {
+            fn as_dyn_expr(self: Box<Self>) -> Box<dyn Expr<T>> {
+                self
+            }
             fn left(&self) -> &dyn Expr<T> {
                 self.left.as_ref().unwrap().as_ref()
             }
@@ -371,7 +383,10 @@ mod expr {
         impl Op2<u32> for OpMul<u32> { type Eval = OpWithMul; }
         impl Op2<f64> for OpMul<f64> { type Eval = OpWithMul; }
         impl Op2<String> for OpMul<String> { type Eval = OpNoOp2; }
-        impl<T> Op2Common<T> for OpMul<T> {
+        impl<T: 'static> Op2Common<T> for OpMul<T> where OpMul<T>: Op2<T> {
+            fn as_dyn_expr(self: Box<Self>) -> Box<dyn Expr<T>> {
+                self
+            }
             fn left(&self) -> &dyn Expr<T> {
                 self.left.as_ref().unwrap().as_ref()
             }
@@ -433,7 +448,10 @@ mod expr {
         impl Op2<u32> for OpDiv<u32> { type Eval = OpWithDiv; }
         impl Op2<f64> for OpDiv<f64> { type Eval = OpWithDiv; }
         impl Op2<String> for OpDiv<String> { type Eval = OpNoOp2; }
-        impl<T> Op2Common<T> for OpDiv<T> {
+        impl<T: 'static> Op2Common<T> for OpDiv<T> where OpDiv<T>: Op2<T> {
+            fn as_dyn_expr(self: Box<Self>) -> Box<dyn Expr<T>> {
+                self
+            }
             fn left(&self) -> &dyn Expr<T> {
                 self.left.as_ref().unwrap().as_ref()
             }
@@ -459,14 +477,20 @@ mod parser {
     use super::expr::{value::Value, op_minus::OpMinus};
     use super::expr::{op_add::OpAdd, op_sub::OpSub, op_mul::OpMul, op_div::OpDiv};
 
-    pub fn parse<T>(s: &str) -> Option<Box<dyn Expr<T>>> where OpAdd<T>: Op2Common<T>, OpSub<T>: Op2Common<T> {
+    pub fn parse<T>(s: &str) -> Option<Box<dyn Expr<T>>> where
+        OpMinus<T>: Op1Common<T>,
+        OpAdd<T>: Op2Common<T>, OpSub<T>: Op2Common<T>, OpMul<T>: Op2Common<T>, OpDiv<T>: Op2Common<T>
+    {
         expression::<T>(s.trim()).0
     }
 
-    fn expression<T>(s: &str) -> (Option<Box<dyn Expr<T>>>, &str) where OpAdd<T>: Op2Common<T>, OpSub<T>: Op2Common<T> {
-        if let (Some(mut t1), s) = term::<T>(s) {
+    fn expression<T>(s: &str) -> (Option<Box<dyn Expr<T>>>, &str) where
+        OpMinus<T>: Op1Common<T>,
+        OpAdd<T>: Op2Common<T>, OpSub<T>: Op2Common<T>, OpMul<T>: Op2Common<T>, OpDiv<T>: Op2Common<T>
+    {
+        if let (Some(mut t1), mut s) = term::<T>(s) {
             loop {
-                let s = s.trim_start();
+                s = s.trim_start();
                 if s.is_empty() {
                     return (Some(t1), &s);
                 }
@@ -476,10 +500,12 @@ mod parser {
                     '-' => op = Some(Box::new(OpSub::<T>::new())),
                     _ => return (Some(t1), &s)
                 }
-                if let(Some(t2), s) = term::<T>(s) {
+                s = &s[1..];
+                if let(Some(t2), s2) = term::<T>(s) {
+                    s = &s2;
                     op.as_deref_mut().unwrap().set_left(t1);
                     op.as_deref_mut().unwrap().set_right(t2);
-                    t1 = op.unwrap();
+                    t1 = op.unwrap().as_dyn_expr();
                 } else {
                     return (None, s)
                 }
@@ -489,7 +515,86 @@ mod parser {
         }
     }
 
-    fn term<T>(s: &str) -> (Option<Box<dyn Expr<T>>>, &str) {
-        (None, &s)
+    fn term<T>(s: &str) -> (Option<Box<dyn Expr<T>>>, &str) where
+        OpMinus<T>: Op1Common<T>,
+        OpAdd<T>: Op2Common<T>, OpSub<T>: Op2Common<T>, OpMul<T>: Op2Common<T>, OpDiv<T>: Op2Common<T>
+    {
+        if let (Some(mut f1), mut s) = factor::<T>(s) {
+            loop {
+                s = s.trim_start();
+                if s.is_empty() {
+                    return (Some(f1), &s);
+                }
+                let mut op: Option<Box<dyn Op2Common<T>>>;
+                match s.chars().next().unwrap() {
+                    '*' => op = Some(Box::new(OpMul::<T>::new())),
+                    '/' => op = Some(Box::new(OpDiv::<T>::new())),
+                    _ => return (Some(f1), &s)
+                }
+                s = &s[1..];
+                if let(Some(f2), s2) = factor::<T>(s) {
+                    s = &s2;
+                    op.as_deref_mut().unwrap().set_left(f1);
+                    op.as_deref_mut().unwrap().set_right(f2);
+                    f1 = op.unwrap().as_dyn_expr();
+                } else {
+                    return (None, s);
+                }
+            }
+        } else {
+            (None, &s)
+        }
+    }
+
+    fn factor<T>(s: &str) -> (Option<Box<dyn Expr<T>>>, &str) where
+        OpMinus<T>: Op1Common<T>,
+        OpAdd<T>: Op2Common<T>, OpSub<T>: Op2Common<T>, OpMul<T>: Op2Common<T>, OpDiv<T>: Op2Common<T>
+    {
+        let mut s = s.trim_start();
+        if s.is_empty() {
+            return (None, s);
+        }
+        let mut m: Option<Box<dyn Op1Common<T>>> = None;
+        match s.chars().next().unwrap() {
+            '-' => {
+                m = Some(Box::new(OpMinus::<T>::new()));
+                s = &s[1..];
+            }
+            _ => {}
+        }
+        s = s.trim_start();
+        if s.is_empty() {
+            return (None, s);
+        }
+        let mut e: Option<Box<dyn Expr<T>>>;
+        match s.chars().next().unwrap() {
+            '(' => {
+                s = &s[1..];
+                (e, s) = expression::<T>(s);
+                if e.is_some() {
+                    s = s.trim_start();
+                    if s.is_empty() {
+                        return (None, s);
+                    }
+                    match s.chars().next().unwrap() {
+                        ')' => s = &s[1..],
+                        _ => return (None, s),
+                    }
+                }
+            }
+            _ => (e, s) = terminal::<T>(s),
+        }
+        if m.is_some() {
+            m.as_deref_mut().unwrap().set_child(e.unwrap());
+            e = Some(m.unwrap().as_dyn_expr());
+        }
+        (e, s)
+    }
+
+    fn terminal<T>(s: &str) -> (Option<Box<dyn Expr<T>>>, &str) where
+        OpMinus<T>: Op1Common<T>,
+        OpAdd<T>: Op2Common<T>, OpSub<T>: Op2Common<T>, OpMul<T>: Op2Common<T>, OpDiv<T>: Op2Common<T>
+    {
+        (None, s)
     }
 }
