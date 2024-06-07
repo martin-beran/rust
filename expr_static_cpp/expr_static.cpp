@@ -24,17 +24,10 @@ enum class op2_kind {
 template <class T> class expr {
 public:
     expr(const T& v): e(v) {}
-    expr(op1_kind kind): e(std::in_place_type_t<op1>(), kind) {}
-    expr(op2_kind kind): e(std::in_place_type_t<op2>(), kind) {}
-    void child(std::unique_ptr<expr<T>>&& c) {
-        std::get<op1>(e).child = std::move(c);
-    }
-    void left(std::unique_ptr<expr<T>>&& l) {
-        std::get<op2>(e).l = std::move(l);
-    }
-    void right(std::unique_ptr<expr<T>>&& r) {
-        std::get<op2>(e).r = std::move(r);
-    }
+    expr(op1_kind kind, std::unique_ptr<expr<T>>&& child):
+        e(std::in_place_type_t<op1>(), kind, std::move(child)) {}
+    expr(op2_kind kind, std::unique_ptr<expr<T>>&& l, std::unique_ptr<expr<T>>&& r):
+        e(std::in_place_type_t<op2>(), kind, std::move(l), std::move(r)) {}
     std::optional<T> eval() const {
         return std::visit([this](auto&& v) { return eval(v); }, e);
     }
@@ -170,11 +163,11 @@ template <class T> std::unique_ptr<expr<T>> terminal()
 
 template <class T> std::unique_ptr<expr<T>> factor()
 {
-    std::unique_ptr<expr<T>> m;
+    std::optional<op1_kind> op{};
     if (char c; std::cin >> c) {
         switch (c) {
         case '-':
-            m = std::make_unique<expr<T>>(op1_kind::minus);
+            op = op1_kind::minus;
             break;
         case '(':
             std::cin.unget();
@@ -206,10 +199,8 @@ template <class T> std::unique_ptr<expr<T>> factor()
                 e = terminal<T>();
                 break;
             }
-            if (m) {
-                m->child(std::move(e));
-                e = std::move(m);
-            }
+            if (op)
+                e = std::make_unique<expr<T>>(op.value(), std::move(e));
             return e;
         }
     }
@@ -220,23 +211,21 @@ template <class T> std::unique_ptr<expr<T>> term()
 {
     if (auto f1 = factor<T>()) {
         for (char c; std::cin >> c;) {
-            std::unique_ptr<expr<T>> op{};
+            std::optional<op2_kind> op{};
             switch (c) {
             case '*':
-                op = std::make_unique<expr<T>>(op2_kind::mul);
+                op = op2_kind::mul;
                 break;
             case '/':
-                op = std::make_unique<expr<T>>(op2_kind::div);
+                op = op2_kind::div;
                 break;
             default:
                 std::cin.unget();
                 return f1;
             }
-            if (auto f2 = factor<T>()) {
-                op->left(std::move(f1));
-                op->right(std::move(f2));
-                f1 = std::move(op);
-            } else
+            if (auto f2 = factor<T>())
+                f1 = std::make_unique<expr<T>>(op.value(), std::move(f1), std::move(f2));
+            else
                 return nullptr;
         }
         return f1;
@@ -248,23 +237,21 @@ template <class T> std::unique_ptr<expr<T>> expression()
 {
     if (auto t1 = term<T>()) {
         for (char c; std::cin >> c;) {
-            std::unique_ptr<expr<T>> op{};
+            std::optional<op2_kind> op{};
             switch (c) {
             case '+':
-                op = std::make_unique<expr<T>>(op2_kind::add);
+                op = op2_kind::add;
                 break;
             case '-':
-                op = std::make_unique<expr<T>>(op2_kind::sub);
+                op = op2_kind::sub;
                 break;
             default:
                 std::cin.unget();
                 return t1;
             }
-            if (auto t2 = term<T>()) {
-                op->left(std::move(t1));
-                op->right(std::move(t2));
-                t1 = std::move(op);
-            } else
+            if (auto t2 = term<T>())
+                t1 = std::make_unique<expr<T>>(op.value(), std::move(t1), std::move(t2));
+            else
                 return nullptr;
         }
         return t1;
