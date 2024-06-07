@@ -40,7 +40,11 @@ s = str (only binary +, whitespace needed around operators and parentheses)
     ExitCode::FAILURE
 }
 
-fn run<T: 'static + Clone + Default + PartialEq + std::fmt::Display + std::str::FromStr>() -> ExitCode where
+trait TBound: 'static + Clone + Default + PartialEq + std::fmt::Display + std::str::FromStr {}
+impl<T> TBound for T where
+    T: 'static + Clone + Default + PartialEq + std::fmt::Display + std::str::FromStr {}
+
+fn run<T: TBound>() -> ExitCode where
     T: Neg<Output = T>, T: Add<Output = T>, T: Sub<Output = T>, T: Mul<Output = T>, T: Div<Output = T>,
     TerminalEndImpl<T>: TerminalEnd
 {
@@ -179,20 +183,19 @@ mod expr {
 }
 
 mod parser {
+    use crate::TBound;
     use std::ops::{Neg, Add, Sub, Mul, Div};
     use super::expr::{Op1Kind, Op2Kind, Expr};
 
-    pub fn parse<T: 'static + Default + Clone + PartialEq + std::fmt::Display + std::str::FromStr>(s: &str) ->
-        Option<Box<Expr<T>>>
-        where T: Neg<Output = T>, T: Add<Output = T>, T: Sub<Output = T>, T: Mul<Output = T>, T: Div<Output = T>,
+    pub fn parse<T: TBound>(s: &str) -> Option<Box<Expr<T>>> where
+        T: Neg<Output = T>, T: Add<Output = T>, T: Sub<Output = T>, T: Mul<Output = T>, T: Div<Output = T>,
         TerminalEndImpl<T>: TerminalEnd
     {
         expression::<T>(s.trim()).0
     }
 
-    fn expression<T: 'static + Default + Clone + PartialEq + std::fmt::Display + std::str::FromStr>(s: &str) ->
-        (Option<Box<Expr<T>>>, &str)
-        where T: Neg<Output = T>, T: Add<Output = T>, T: Sub<Output = T>, T: Mul<Output = T>, T: Div<Output = T>,
+    fn expression<T: TBound>(s: &str) -> (Option<Box<Expr<T>>>, &str) where
+        T: Neg<Output = T>, T: Add<Output = T>, T: Sub<Output = T>, T: Mul<Output = T>, T: Div<Output = T>,
         TerminalEndImpl<T>: TerminalEnd
     {
         if let (Some(mut t1), mut s) = term::<T>(s) {
@@ -220,9 +223,8 @@ mod parser {
         }
     }
 
-    fn term<T: 'static + Default + Clone + PartialEq + std::fmt::Display + std::str::FromStr>(s: &str) ->
-        (Option<Box<Expr<T>>>, &str)
-        where T: Neg<Output = T>, T: Add<Output = T>, T: Sub<Output = T>, T: Mul<Output = T>, T: Div<Output = T>,
+    fn term<T: TBound>(s: &str) -> (Option<Box<Expr<T>>>, &str) where
+        T: Neg<Output = T>, T: Add<Output = T>, T: Sub<Output = T>, T: Mul<Output = T>, T: Div<Output = T>,
         TerminalEndImpl<T>: TerminalEnd
     {
         if let (Some(mut f1), mut s) = factor::<T>(s) {
@@ -250,9 +252,8 @@ mod parser {
         }
     }
 
-    fn factor<T: 'static + Default + Clone + PartialEq + std::fmt::Display + std::str::FromStr>(s: &str) ->
-        (Option<Box<Expr<T>>>, &str)
-        where T: Neg<Output = T>, T: Add<Output = T>, T: Sub<Output = T>, T: Mul<Output = T>, T: Div<Output = T>,
+    fn factor<T: TBound>(s: &str) -> (Option<Box<Expr<T>>>, &str) where
+        T: Neg<Output = T>, T: Add<Output = T>, T: Sub<Output = T>, T: Mul<Output = T>, T: Div<Output = T>,
         TerminalEndImpl<T>: TerminalEnd
     {
         let mut s = s.trim_start();
@@ -295,9 +296,8 @@ mod parser {
         (e, s)
     }
 
-    fn terminal<T: 'static + Default + Clone + PartialEq + std::fmt::Display + std::str::FromStr>(s: &str) ->
-        (Option<Box<Expr<T>>>, &str)
-        where T: Neg<Output = T>, T: Add<Output = T>, T: Sub<Output = T>, T: Mul<Output = T>, T: Div<Output = T>,
+    fn terminal<T: TBound>(s: &str) -> (Option<Box<Expr<T>>>, &str) where
+        T: Neg<Output = T>, T: Add<Output = T>, T: Sub<Output = T>, T: Mul<Output = T>, T: Div<Output = T>,
         TerminalEndImpl<T>: TerminalEnd
     {
         let s = s.trim_start();
