@@ -1,4 +1,5 @@
 *.lock
 target/
 expr_cpp/expr
+expr_static_cpp/expr_static
 graph_cpp/graph
