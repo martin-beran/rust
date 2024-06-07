@@ -2,7 +2,7 @@ use parser::{TerminalEnd, TerminalEndImpl};
 use std::env;
 use std::io;
 use std::process::{ExitCode, Termination};
-use std::ops::{Neg, Add, Sub, Mul, Div};
+use ops::*;
 
 fn main() -> impl Termination {
     let mut argv = env::args();
@@ -13,9 +13,9 @@ fn main() -> impl Termination {
     let argv1 = argv.next().unwrap();
     match argv1.as_str() {
         "i" => run::<i32>(),
-        //"u" => run::<u32>(),
+        "u" => run::<u32>(),
         "d" => run::<f64>(),
-        //"s" => run::<String>(),
+        "s" => run::<String>(),
         _ => usage(&argv0),
     }
 }
@@ -44,10 +44,7 @@ trait TBound: 'static + Clone + Default + PartialEq + std::fmt::Display + std::s
 impl<T> TBound for T where
     T: 'static + Clone + Default + PartialEq + std::fmt::Display + std::str::FromStr {}
 
-fn run<T: TBound>() -> ExitCode where
-    T: Neg<Output = T>, T: Add<Output = T>, T: Sub<Output = T>, T: Mul<Output = T>, T: Div<Output = T>,
-    TerminalEndImpl<T>: TerminalEnd
-{
+fn run<T: TBound>() -> ExitCode where for<'a> OpsImpl<'a, T>: Ops<T>, TerminalEndImpl<T>: TerminalEnd {
     let mut input = String::new();
     match io::stdin().read_line(&mut input) {
         Ok(_) => {}
@@ -70,17 +67,97 @@ fn run<T: TBound>() -> ExitCode where
     ExitCode::SUCCESS
 }
 
+mod ops {
+    pub trait Ops<T> {
+        fn neg(self) -> Option<T>;
+        fn add(self, _r: &T) -> Option<T>;
+        fn sub(self, _r: &T) -> Option<T>;
+        fn mul(self, _r: &T) -> Option<T>;
+        fn div(self, _r: &T) -> Option<T>;
+    }
+    pub struct OpsImpl<'a, T> (pub &'a T);
+    impl Ops<i32> for OpsImpl<'_, i32> {
+        fn neg(self) -> Option<i32> {
+            Some(-self.0)
+        }
+        fn add(self, r: &i32) -> Option<i32> {
+            Some(self.0 + *r)
+        }
+        fn sub(self, r: &i32) -> Option<i32> {
+            Some(self.0 - *r)
+        }
+        fn mul(self, r: &i32) -> Option<i32> {
+            Some(self.0 * *r)
+        }
+        fn div(self, r: &i32) -> Option<i32> {
+            Some(self.0 / *r)
+        }
+    }
+    impl Ops<u32> for OpsImpl<'_, u32> {
+        fn neg(self) -> Option<u32> {
+            None
+        }
+        fn add(self, r: &u32) -> Option<u32> {
+            Some(self.0 + *r)
+        }
+        fn sub(self, r: &u32) -> Option<u32> {
+            Some(self.0 - *r)
+        }
+        fn mul(self, r: &u32) -> Option<u32> {
+            Some(self.0 * *r)
+        }
+        fn div(self, r: &u32) -> Option<u32> {
+            Some(self.0 / *r)
+        }
+    }
+    impl Ops<f64> for OpsImpl<'_, f64> {
+        fn neg(self) -> Option<f64> {
+            Some(-self.0)
+        }
+        fn add(self, r: &f64) -> Option<f64> {
+            Some(self.0 + *r)
+        }
+        fn sub(self, r: &f64) -> Option<f64> {
+            Some(self.0 - *r)
+        }
+        fn mul(self, r: &f64) -> Option<f64> {
+            Some(self.0 * *r)
+        }
+        fn div(self, r: &f64) -> Option<f64> {
+            Some(self.0 / *r)
+        }
+    }
+    impl Ops<String> for OpsImpl<'_, String> {
+        fn neg(self) -> Option<String> {
+            None
+        }
+        fn add(self, r: &String) -> Option<String> {
+            Some((self.0).clone() + &*r)
+        }
+        fn sub(self, _: &String) -> Option<String> {
+            None
+        }
+        fn mul(self, _: &String) -> Option<String> {
+            None
+        }
+        fn div(self, _: &String) -> Option<String> {
+            None
+        }
+    }
+}
+
 mod expr {
-    use std::ops::{Neg, Add, Sub, Mul, Div};
+    use crate::TBound;
+    use crate::ops::*;
+
     pub enum Op1Kind {
         Minus,
     }
     impl Op1Kind {
-        pub fn eval<T>(&self, c: T) -> Option<T> where
-            T: Neg<Output = T>
+        pub fn eval<T>(&self, c: T) -> Option<T> where for<'a> OpsImpl<'a, T>: Ops<T>
         {
             match *self {
-                Op1Kind::Minus => Some(-c),
+                Op1Kind::Minus => Ops::<T>::neg(OpsImpl(&c)),
             }
         }
         pub fn display(&self) {
@@ -96,16 +173,14 @@ mod expr {
         Div,
     }
     impl Op2Kind {
-        pub fn eval<T: Default + PartialEq>(&self, l: T, r: T) -> Option<T> where
-            T: Add<Output = T>, T: Sub<Output = T>, T: Mul<Output = T>, T: Div<Output = T>
-        {
+        pub fn eval<T: Default + PartialEq>(&self, l: T, r: T) -> Option<T> where for<'a> OpsImpl<'a, T>: Ops<T> {
             match *self {
-                Op2Kind::Add => Some(l + r),
-                Op2Kind::Sub => Some(l - r),
-                Op2Kind::Mul => Some(l * r),
+                Op2Kind::Add => Ops::<T>::add(OpsImpl(&l), &r),
+                Op2Kind::Sub => Ops::<T>::sub(OpsImpl(&l), &r),
+                Op2Kind::Mul => Ops::<T>::mul(OpsImpl(&l), &r),
                 Op2Kind::Div =>
                     if r != T::default() {
-                        Some(l / r)
+                        Ops::<T>::div(OpsImpl(&l), &r)
                     } else {
                         None
                     },
@@ -134,9 +209,7 @@ mod expr {
             r: Box<Expr<T>>,
         },
     }
-    impl<T: Default + Clone + PartialEq + std::fmt::Display + std::str::FromStr> Expr<T> where
-        T: Neg<Output = T>, T: Add<Output = T>, T: Sub<Output = T>, T: Mul<Output = T>, T: Div<Output = T>
-    {
+    impl<T: TBound> Expr<T> where for<'a> OpsImpl<'a, T>: Ops<T> {
         pub fn new_value(v: T) -> Expr<T> {
             Expr::Value { v }
         }
@@ -184,19 +257,17 @@ mod expr {
 
 mod parser {
     use crate::TBound;
-    use std::ops::{Neg, Add, Sub, Mul, Div};
+    use crate::ops::*;
     use super::expr::{Op1Kind, Op2Kind, Expr};
 
     pub fn parse<T: TBound>(s: &str) -> Option<Box<Expr<T>>> where
-        T: Neg<Output = T>, T: Add<Output = T>, T: Sub<Output = T>, T: Mul<Output = T>, T: Div<Output = T>,
-        TerminalEndImpl<T>: TerminalEnd
+        for<'a> OpsImpl<'a, T>: Ops<T>, TerminalEndImpl<T>: TerminalEnd
     {
         expression::<T>(s.trim()).0
     }
 
     fn expression<T: TBound>(s: &str) -> (Option<Box<Expr<T>>>, &str) where
-        T: Neg<Output = T>, T: Add<Output = T>, T: Sub<Output = T>, T: Mul<Output = T>, T: Div<Output = T>,
-        TerminalEndImpl<T>: TerminalEnd
+        for<'a> OpsImpl<'a, T>: Ops<T>, TerminalEndImpl<T>: TerminalEnd
     {
         if let (Some(mut t1), mut s) = term::<T>(s) {
             loop {
@@ -224,8 +295,7 @@ mod parser {
     }
 
     fn term<T: TBound>(s: &str) -> (Option<Box<Expr<T>>>, &str) where
-        T: Neg<Output = T>, T: Add<Output = T>, T: Sub<Output = T>, T: Mul<Output = T>, T: Div<Output = T>,
-        TerminalEndImpl<T>: TerminalEnd
+        for<'a> OpsImpl<'a, T>: Ops<T>, TerminalEndImpl<T>: TerminalEnd
     {
         if let (Some(mut f1), mut s) = factor::<T>(s) {
             loop {
@@ -253,8 +323,7 @@ mod parser {
     }
 
     fn factor<T: TBound>(s: &str) -> (Option<Box<Expr<T>>>, &str) where
-        T: Neg<Output = T>, T: Add<Output = T>, T: Sub<Output = T>, T: Mul<Output = T>, T: Div<Output = T>,
-        TerminalEndImpl<T>: TerminalEnd
+        for<'a> OpsImpl<'a, T>: Ops<T>, TerminalEndImpl<T>: TerminalEnd
     {
         let mut s = s.trim_start();
         if s.is_empty() {
@@ -297,8 +366,7 @@ mod parser {
     }
 
     fn terminal<T: TBound>(s: &str) -> (Option<Box<Expr<T>>>, &str) where
-        T: Neg<Output = T>, T: Add<Output = T>, T: Sub<Output = T>, T: Mul<Output = T>, T: Div<Output = T>,
-        TerminalEndImpl<T>: TerminalEnd
+        for<'a> OpsImpl<'a, T>: Ops<T>, TerminalEndImpl<T>: TerminalEnd
     {
         let s = s.trim_start();
         if s.is_empty() {
