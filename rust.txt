@@ -3,6 +3,14 @@ Rust
 
 https://www.rust-lang.org
 
+Toolchain
+    View expanded macros
+        using nightly rustc
+            rustup run nightly rustc -Zunpretty=expanded src/main.rs
+        using crate cargo-expand
+            cargo install cargo-expand
+            cargo expand
+
 Types
     Scalar
         Integer
@@ -71,6 +79,10 @@ Value or error
         Ok(T),
         Err(E),
     }
+
+Operators
+    a..b ... a <= X < b
+    a..=b ... a <= X <= b
 
 Control expressions/statements
     if EXPR { ... }
