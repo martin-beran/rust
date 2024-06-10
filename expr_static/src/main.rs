@@ -3,6 +3,8 @@ use std::env;
 use std::io;
 use std::process::{ExitCode, Termination};
 use ops::*;
+use std::fmt::Display;
+use std::str::FromStr;
 
 fn main() -> impl Termination {
     let mut argv = env::args();
@@ -40,11 +42,11 @@ s = str (only binary +, whitespace needed around operators and parentheses)
     ExitCode::FAILURE
 }
 
-trait TBound: 'static + Clone + Default + PartialEq + std::fmt::Display + std::str::FromStr {}
-impl<T> TBound for T where
-    T: 'static + Clone + Default + PartialEq + std::fmt::Display + std::str::FromStr {}
+pub trait TBound<T>: 'static + Clone + Default + PartialEq + Display + FromStr + Ops<T> {}
+impl<T> TBound<T> for T where
+    T: 'static + Clone + Default + PartialEq + Display + FromStr + Ops<T> {}
 
-fn run<T: TBound>() -> ExitCode where for<'a> OpsImpl<'a, T>: Ops<T>, TerminalEndImpl<T>: TerminalEnd {
+fn run<T: TBound<T>>() -> ExitCode where TerminalEndImpl<T>: TerminalEnd {
     let mut input = String::new();
     match io::stdin().read_line(&mut input) {
         Ok(_) => {}
@@ -54,8 +56,7 @@ fn run<T: TBound>() -> ExitCode where for<'a> OpsImpl<'a, T>: Ops<T>, TerminalEn
         }
     }
     if let Some(e) = parser::parse::<T>(&input) {
-        e.display();
-        println!("");
+        println!("{}", e);
         if let Some(v) = e.eval() {
             println!("{}", v);
         } else {
@@ -69,78 +70,77 @@ fn run<T: TBound>() -> ExitCode where for<'a> OpsImpl<'a, T>: Ops<T>, TerminalEn
 
 mod ops {
     pub trait Ops<T> {
-        fn neg(self) -> Option<T>;
-        fn add(self, _r: &T) -> Option<T>;
-        fn sub(self, _r: &T) -> Option<T>;
-        fn mul(self, _r: &T) -> Option<T>;
-        fn div(self, _r: &T) -> Option<T>;
+        fn neg(&self) -> Option<T>;
+        fn add(&self, r: &T) -> Option<T>;
+        fn sub(&self, r: &T) -> Option<T>;
+        fn mul(&self, r: &T) -> Option<T>;
+        fn div(&self, r: &T) -> Option<T>;
     }
-    pub struct OpsImpl<'a, T> (pub &'a T);
-    impl Ops<i32> for OpsImpl<'_, i32> {
-        fn neg(self) -> Option<i32> {
-            Some(-self.0)
+    impl Ops<i32> for i32 {
+        fn neg(&self) -> Option<i32> {
+            Some(-self)
         }
-        fn add(self, r: &i32) -> Option<i32> {
-            Some(self.0 + *r)
+        fn add(&self, r: &i32) -> Option<i32> {
+            Some(self + *r)
         }
-        fn sub(self, r: &i32) -> Option<i32> {
-            Some(self.0 - *r)
+        fn sub(&self, r: &i32) -> Option<i32> {
+            Some(self - *r)
         }
-        fn mul(self, r: &i32) -> Option<i32> {
-            Some(self.0 * *r)
+        fn mul(&self, r: &i32) -> Option<i32> {
+            Some(self * *r)
         }
-        fn div(self, r: &i32) -> Option<i32> {
-            Some(self.0 / *r)
-        }
-    }
-    impl Ops<u32> for OpsImpl<'_, u32> {
-        fn neg(self) -> Option<u32> {
-            None
-        }
-        fn add(self, r: &u32) -> Option<u32> {
-            Some(self.0 + *r)
-        }
-        fn sub(self, r: &u32) -> Option<u32> {
-            Some(self.0 - *r)
-        }
-        fn mul(self, r: &u32) -> Option<u32> {
-            Some(self.0 * *r)
-        }
-        fn div(self, r: &u32) -> Option<u32> {
-            Some(self.0 / *r)
+        fn div(&self, r: &i32) -> Option<i32> {
+            Some(self / *r)
         }
     }
-    impl Ops<f64> for OpsImpl<'_, f64> {
-        fn neg(self) -> Option<f64> {
-            Some(-self.0)
+    impl Ops<u32> for u32 {
+        fn neg(&self) -> Option<u32> {
+            None
         }
-        fn add(self, r: &f64) -> Option<f64> {
-            Some(self.0 + *r)
+        fn add(&self, r: &u32) -> Option<u32> {
+            Some(self + *r)
         }
-        fn sub(self, r: &f64) -> Option<f64> {
-            Some(self.0 - *r)
+        fn sub(&self, r: &u32) -> Option<u32> {
+            Some(self - *r)
         }
-        fn mul(self, r: &f64) -> Option<f64> {
-            Some(self.0 * *r)
+        fn mul(&self, r: &u32) -> Option<u32> {
+            Some(self * *r)
         }
-        fn div(self, r: &f64) -> Option<f64> {
-            Some(self.0 / *r)
+        fn div(&self, r: &u32) -> Option<u32> {
+            Some(self / *r)
         }
     }
-    impl Ops<String> for OpsImpl<'_, String> {
-        fn neg(self) -> Option<String> {
+    impl Ops<f64> for f64 {
+        fn neg(&self) -> Option<f64> {
+            Some(-self)
+        }
+        fn add(&self, r: &f64) -> Option<f64> {
+            Some(self + *r)
+        }
+        fn sub(&self, r: &f64) -> Option<f64> {
+            Some(self - *r)
+        }
+        fn mul(&self, r: &f64) -> Option<f64> {
+            Some(self * *r)
+        }
+        fn div(&self, r: &f64) -> Option<f64> {
+            Some(self / *r)
+        }
+    }
+    impl Ops<String> for String {
+        fn neg(&self) -> Option<String> {
             None
         }
-        fn add(self, r: &String) -> Option<String> {
-            Some((self.0).clone() + &*r)
+        fn add(&self, r: &String) -> Option<String> {
+            Some((self).clone() + &*r)
         }
-        fn sub(self, _: &String) -> Option<String> {
+        fn sub(&self, _: &String) -> Option<String> {
             None
         }
-        fn mul(self, _: &String) -> Option<String> {
+        fn mul(&self, _: &String) -> Option<String> {
             None
         }
-        fn div(self, _: &String) -> Option<String> {
+        fn div(&self, _: &String) -> Option<String> {
             None
         }
     }
@@ -149,20 +149,22 @@ mod ops {
 mod expr {
     use crate::TBound;
     use crate::ops::*;
+    use std::fmt::{Display, Error, Formatter};
 
     pub enum Op1Kind {
         Minus,
     }
     impl Op1Kind {
-        pub fn eval<T>(&self, c: T) -> Option<T> where for<'a> OpsImpl<'a, T>: Ops<T>
-        {
+        pub fn eval<T: Ops<T>>(&self, c: T) -> Option<T> {
             match *self {
-                Op1Kind::Minus => Ops::<T>::neg(OpsImpl(&c)),
+                Op1Kind::Minus => Ops::<T>::neg(&c),
             }
         }
-        pub fn display(&self) {
-            match *self {
-                Op1Kind::Minus => print!("-"),
+    }
+    impl Display for Op1Kind {
+        fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+            match self {
+                Op1Kind::Minus => write!(f, "-"),
             }
         }
     }
@@ -173,25 +175,27 @@ mod expr {
         Div,
     }
     impl Op2Kind {
-        pub fn eval<T: Default + PartialEq>(&self, l: T, r: T) -> Option<T> where for<'a> OpsImpl<'a, T>: Ops<T> {
+        pub fn eval<T: Default + PartialEq + Ops<T>>(&self, l: T, r: T) -> Option<T> {
             match *self {
-                Op2Kind::Add => Ops::<T>::add(OpsImpl(&l), &r),
-                Op2Kind::Sub => Ops::<T>::sub(OpsImpl(&l), &r),
-                Op2Kind::Mul => Ops::<T>::mul(OpsImpl(&l), &r),
+                Op2Kind::Add => Ops::<T>::add(&l, &r),
+                Op2Kind::Sub => Ops::<T>::sub(&l, &r),
+                Op2Kind::Mul => Ops::<T>::mul(&l, &r),
                 Op2Kind::Div =>
                     if r != T::default() {
-                        Ops::<T>::div(OpsImpl(&l), &r)
+                        Ops::<T>::div(&l, &r)
                     } else {
                         None
                     },
             }
         }
-        pub fn display(&self) {
-            match *self {
-                Op2Kind::Add => print!("+"),
-                Op2Kind::Sub => print!("-"),
-                Op2Kind::Mul => print!("*"),
-                Op2Kind::Div => print!("/"),
+    }
+    impl Display for Op2Kind {
+        fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+            match self {
+                Op2Kind::Add => write!(f, "+"),
+                Op2Kind::Sub => write!(f, "-"),
+                Op2Kind::Mul => write!(f, "*"),
+                Op2Kind::Div => write!(f, "/"),
             }
         }
     }
@@ -209,16 +213,7 @@ mod expr {
             r: Box<Expr<T>>,
         },
     }
-    impl<T: TBound> Expr<T> where for<'a> OpsImpl<'a, T>: Ops<T> {
-        pub fn new_value(v: T) -> Expr<T> {
-            Expr::Value { v }
-        }
-        pub fn new_op1(op: Op1Kind, child: Box<Expr<T>>) -> Expr<T> {
-            Expr::Op1 { op, child, }
-        }
-        pub fn new_op2(op: Op2Kind, l: Box<Expr<T>>, r: Box<Expr<T>>) -> Expr<T> {
-            Expr::Op2 { op, l, r, }
-        }
+    impl<T: TBound<T>> Expr<T> {
         pub fn eval(&self) -> Option<T> {
             match self {
                 Expr::Value{v} => Some((*v).clone()),
@@ -236,39 +231,27 @@ mod expr {
                     }
             }
         }
-        pub fn display(&self) {
-            print!("(");
+    }
+    impl<T: Display> Display for Expr<T> {
+        fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
             match self {
-                Expr::Value{v} => print!("{}", v),
-                Expr::Op1{op, child} => {
-                    op.display();
-                    child.display();
-                }
-                Expr::Op2{op, l, r} => {
-                    l.display();
-                    op.display();
-                    r.display();
-                }
+                Expr::Value{v} => write!(f, "({v})"),
+                Expr::Op1{op, child} => write!(f, "({op}{child})"),
+                Expr::Op2{op, l, r} => write!(f, "({l}{op}{r})"),
             }
-            print!(")");
         }
     }
 }
 
 mod parser {
     use crate::TBound;
-    use crate::ops::*;
     use super::expr::{Op1Kind, Op2Kind, Expr};
 
-    pub fn parse<T: TBound>(s: &str) -> Option<Box<Expr<T>>> where
-        for<'a> OpsImpl<'a, T>: Ops<T>, TerminalEndImpl<T>: TerminalEnd
-    {
+    pub fn parse<T: TBound<T>>(s: &str) -> Option<Expr<T>> where TerminalEndImpl<T>: TerminalEnd {
         expression::<T>(s.trim()).0
     }
 
-    fn expression<T: TBound>(s: &str) -> (Option<Box<Expr<T>>>, &str) where
-        for<'a> OpsImpl<'a, T>: Ops<T>, TerminalEndImpl<T>: TerminalEnd
-    {
+    fn expression<T: TBound<T>>(s: &str) -> (Option<Expr<T>>, &str) where TerminalEndImpl<T>: TerminalEnd {
         if let (Some(mut t1), mut s) = term::<T>(s) {
             loop {
                 s = s.trim_start();
@@ -284,7 +267,7 @@ mod parser {
                 s = &s[1..];
                 if let(Some(t2), s2) = term::<T>(s) {
                     s = &s2;
-                    t1 = Box::new(Expr::new_op2(op, t1, t2));
+                    t1 = Expr::Op2 {op, l: Box::new(t1), r: Box::new(t2)};
                 } else {
                     return (None, s)
                 }
@@ -294,9 +277,7 @@ mod parser {
         }
     }
 
-    fn term<T: TBound>(s: &str) -> (Option<Box<Expr<T>>>, &str) where
-        for<'a> OpsImpl<'a, T>: Ops<T>, TerminalEndImpl<T>: TerminalEnd
-    {
+    fn term<T: TBound<T>>(s: &str) -> (Option<Expr<T>>, &str) where TerminalEndImpl<T>: TerminalEnd {
         if let (Some(mut f1), mut s) = factor::<T>(s) {
             loop {
                 s = s.trim_start();
@@ -312,7 +293,7 @@ mod parser {
                 s = &s[1..];
                 if let(Some(f2), s2) = factor::<T>(s) {
                     s = &s2;
-                    f1 = Box::new(Expr::new_op2(op, f1, f2));
+                    f1 = Expr::Op2 {op, l: Box::new(f1), r: Box::new(f2)};
                 } else {
                     return (None, s);
                 }
@@ -322,9 +303,7 @@ mod parser {
         }
     }
 
-    fn factor<T: TBound>(s: &str) -> (Option<Box<Expr<T>>>, &str) where
-        for<'a> OpsImpl<'a, T>: Ops<T>, TerminalEndImpl<T>: TerminalEnd
-    {
+    fn factor<T: TBound<T>>(s: &str) -> (Option<Expr<T>>, &str) where TerminalEndImpl<T>: TerminalEnd {
         let mut s = s.trim_start();
         if s.is_empty() {
             return (None, s);
@@ -341,7 +320,7 @@ mod parser {
         if s.is_empty() {
             return (None, s);
         }
-        let mut e: Option<Box<Expr<T>>>;
+        let mut e: Option<Expr<T>>;
         match s.chars().next().unwrap() {
             '(' => {
                 s = &s[1..];
@@ -360,14 +339,12 @@ mod parser {
             _ => (e, s) = terminal::<T>(s),
         }
         if let Some(op) = m {
-            e = Some(Box::new(Expr::new_op1(op, e.unwrap())));
+            e = Some(Expr::Op1 {op, child: Box::new(e.unwrap())});
         }
         (e, s)
     }
 
-    fn terminal<T: TBound>(s: &str) -> (Option<Box<Expr<T>>>, &str) where
-        for<'a> OpsImpl<'a, T>: Ops<T>, TerminalEndImpl<T>: TerminalEnd
-    {
+    fn terminal<T: TBound<T>>(s: &str) -> (Option<Expr<T>>, &str) where TerminalEndImpl<T>: TerminalEnd {
         let s = s.trim_start();
         if s.is_empty() {
             return (None, s);
@@ -377,7 +354,7 @@ mod parser {
             return (None, s)
         }
         if let Ok(v) = s[..i].parse::<T>() {
-            (Some(Box::new(Expr::new_value(v))), &s[i..])
+            (Some(Expr::Value {v}), &s[i..])
         } else {
             (None, s)
         }
