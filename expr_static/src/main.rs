@@ -1,4 +1,4 @@
-use parser::{TerminalEnd, TerminalEndImpl};
+use parser::TerminalEnd;
 use std::env;
 use std::io;
 use std::process::{ExitCode, Termination};
@@ -42,11 +42,11 @@ s = str (only binary +, whitespace needed around operators and parentheses)
     ExitCode::FAILURE
 }
 
-pub trait TBound<T>: 'static + Clone + Default + PartialEq + Display + FromStr + Ops<T> {}
+pub trait TBound<T>: 'static + Clone + Default + PartialEq + Display + FromStr + Ops<T> + TerminalEnd {}
 impl<T> TBound<T> for T where
-    T: 'static + Clone + Default + PartialEq + Display + FromStr + Ops<T> {}
+    T: 'static + Clone + Default + PartialEq + Display + FromStr + Ops<T> + TerminalEnd {}
 
-fn run<T: TBound<T>>() -> ExitCode where TerminalEndImpl<T>: TerminalEnd {
+fn run<T: TBound<T>>() -> ExitCode {
     let mut input = String::new();
     match io::stdin().read_line(&mut input) {
         Ok(_) => {}
@@ -247,11 +247,11 @@ mod parser {
     use crate::TBound;
     use super::expr::{Op1Kind, Op2Kind, Expr};
 
-    pub fn parse<T: TBound<T>>(s: &str) -> Option<Expr<T>> where TerminalEndImpl<T>: TerminalEnd {
+    pub fn parse<T: TBound<T>>(s: &str) -> Option<Expr<T>> {
         expression::<T>(s.trim()).0
     }
 
-    fn expression<T: TBound<T>>(s: &str) -> (Option<Expr<T>>, &str) where TerminalEndImpl<T>: TerminalEnd {
+    fn expression<T: TBound<T>>(s: &str) -> (Option<Expr<T>>, &str) {
         if let (Some(mut t1), mut s) = term::<T>(s) {
             loop {
                 s = s.trim_start();
@@ -277,7 +277,7 @@ mod parser {
         }
     }
 
-    fn term<T: TBound<T>>(s: &str) -> (Option<Expr<T>>, &str) where TerminalEndImpl<T>: TerminalEnd {
+    fn term<T: TBound<T>>(s: &str) -> (Option<Expr<T>>, &str) {
         if let (Some(mut f1), mut s) = factor::<T>(s) {
             loop {
                 s = s.trim_start();
@@ -303,7 +303,7 @@ mod parser {
         }
     }
 
-    fn factor<T: TBound<T>>(s: &str) -> (Option<Expr<T>>, &str) where TerminalEndImpl<T>: TerminalEnd {
+    fn factor<T: TBound<T>>(s: &str) -> (Option<Expr<T>>, &str) {
         let mut s = s.trim_start();
         if s.is_empty() {
             return (None, s);
@@ -344,12 +344,12 @@ mod parser {
         (e, s)
     }
 
-    fn terminal<T: TBound<T>>(s: &str) -> (Option<Expr<T>>, &str) where TerminalEndImpl<T>: TerminalEnd {
+    fn terminal<T: TBound<T>>(s: &str) -> (Option<Expr<T>>, &str) {
         let s = s.trim_start();
         if s.is_empty() {
             return (None, s);
         }
-        let i = s.find(TerminalEndImpl::<T>::pattern).unwrap_or(s.len());
+        let i = s.find(T::pattern).unwrap_or(s.len());
         if i == 0 {
             return (None, s)
         }
@@ -363,28 +363,25 @@ mod parser {
     pub trait TerminalEnd {
         fn pattern(c: char) -> bool;
     }
-    pub struct TerminalEndImpl<T> {
-        dummy: std::marker::PhantomData<T>,
-    }
     fn pattern_int(c: char) -> bool {
         c >= '0' && c <= '9'
     }
-    impl TerminalEnd for TerminalEndImpl<i32> {
+    impl TerminalEnd for i32 {
         fn pattern(c: char) -> bool {
             !pattern_int(c)
         }
     }
-    impl TerminalEnd for TerminalEndImpl<u32> {
+    impl TerminalEnd for u32 {
         fn pattern(c: char) -> bool {
             !pattern_int(c)
         }
     }
-    impl TerminalEnd for TerminalEndImpl<f64> {
+    impl TerminalEnd for f64 {
         fn pattern(c: char) -> bool {
             !(pattern_int(c) || c == '.')
         }
     }
-    impl TerminalEnd for TerminalEndImpl<String> {
+    impl TerminalEnd for String {
         fn pattern(c: char) -> bool {
             c == ' '
         }
