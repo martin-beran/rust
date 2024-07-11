@@ -68,6 +68,21 @@ Variables and constants
     let mut mutable_variable: i32 = 232;
     const constant: i32 = 0; // must be explicitly typed
 
+Addresses and sizes of types and values
+    std::mem::size_of<T>() // size of type T
+    std::mem::size_of_val(&v) // size of value v
+    let mut v: T = ...
+    let p: *const T = &v as *const T;
+    let p: *const T = std::ptr::addr_of!(v); // without creating intermediate reference
+    let p: *mut T = &mut v as *mut T;
+    let p: *mut T = std::ptr::addr_of_mut!(v); // without creating intermediate reference
+    unsafe { &*p } // reborrowing as a reference
+    unsafe { &mut *p } // reborrowing as a mutable reference
+    format!("{:p}", p) // format a reference or pointer as address
+    let a = p as usize // convert a pointer to integer containing the pointed to address
+    a as *const T // convert an address to a pointer
+
+
 Optional value
     enum Option<T> {
         None,
